@@ -1,0 +1,78 @@
+kind: Secret
+apiVersion: v1
+metadata:
+  name: marge-secrets
+type: Opaque
+data:
+  MARGE_AUTH_TOKEN: "{{ .Values.secrets.authToken }}"
+  MARGE_SSH_KEY: "{{ .Values.secrets.sshKey }}"
+---
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: {{ include "marge-bot.fullname" . }}
+  labels:
+    app.kubernetes.io/name: {{ include "marge-bot.name" . }}
+    helm.sh/chart: {{ include "marge-bot.chart" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "marge-bot.name" . }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+    spec:
+      serviceAccountName: default
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          # livenessProbe:
+          #   httpGet:
+          #     path: /
+          #     port: http
+          # readinessProbe:
+          #   httpGet:
+          #     path: /
+          #     port: http
+          args: ["--gitlab-url={{.Values.gitlab.url}}",
+                {{- if .Values.impersonateApprovers.enabled }}
+                  "--impersonate-approvers",
+                {{- end }}
+                {{- if .Values.addTested.enabled }}
+                  "--add-tested",
+                {{- end }}
+                {{- if .Values.addReviewers.enabled }}
+                  "--add-reviewers",
+                {{- end }}
+                {{- if .Values.addPartOf.enabled }}
+                  "--add-part-of"
+                {{- end }}
+                ]
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          env:
+            - name: MARGE_AUTH_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: marge-secrets
+                  key: MARGE_AUTH_TOKEN
+            - name: MARGE_SSH_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: marge-secrets
+                  key: MARGE_SSH_KEY
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
+    {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
