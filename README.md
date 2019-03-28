@@ -256,6 +256,14 @@ ktmpl ./deploy.yml \
 --parameter MARGE_SSH_KEY "$(cat marge-bot-ssh-key)" \
 --parameter REPLICA_COUNT 1 | kubectl -n=${KUBE_NAMESPACE} apply --force -f -
 ```
+Helm:
+
+```bash
+helm template helm/marge-bot --name marge-bot \
+--set secrets.authToken="MARGE_BOT_AUTH_TOKEN" \
+--set secrets.sshKey="MARGE_BOT_SSH_KEY" \
+--set gitlab.url="http://your.gitlab.instance.com" | kubectl -n marge-bot apply -f -
+```
 
 Once running, the bot will continuously monitor all projects that have its user as a member and
 will pick up any changes in membership at runtime.
